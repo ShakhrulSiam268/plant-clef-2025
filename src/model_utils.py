@@ -4,6 +4,35 @@ from PIL import Image
 import open_clip
 import torch.serialization
 
+import torch.nn.functional as F
+
+class CosineClassifier(nn.Module):
+    def __init__(self, in_dim, num_classes, s=30.0):
+        super().__init__()
+        self.W = nn.Parameter(torch.randn(num_classes, in_dim))
+        nn.init.xavier_uniform_(self.W)
+        self.s = s
+
+    def forward(self, x):
+        x = F.normalize(x, dim=1)
+        W = F.normalize(self.W, dim=1)
+        return self.s * (x @ W.t())
+
+class SimpleMLP_2(nn.Module):
+    def __init__(self, input_size=768, hidden_size=512, num_classes=7600, p=0.3):
+        super().__init__()
+        self.feat = nn.Sequential(
+            nn.Linear(input_size, hidden_size),
+            nn.ReLU(),
+            nn.Dropout(p),
+            nn.Linear(hidden_size, hidden_size // 2),
+            nn.ReLU(),
+        )
+        self.classifier = CosineClassifier(hidden_size // 2, num_classes, s=30.0)
+
+    def forward(self, x):
+        z = self.feat(x)
+        return self.classifier(z)
 
 class SimpleMLP(nn.Module):
     def __init__(self, input_size, hidden_size, num_classes):

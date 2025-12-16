@@ -1,4 +1,11 @@
 *__pycache__/
 .idea/
 *.ipynb_checkpoints/
-
+*.pt
+*.pth
+/results/results_multi_scale/*
+/plant_instances/*
+Notebooks/merge.ipynb
+Notebooks/*.csv
+GroundingDINO/weights/*
+GroundingDINO/*

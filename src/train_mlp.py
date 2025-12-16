@@ -8,16 +8,25 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from tqdm import tqdm
 import os
-from model_utils import SimpleMLP
+import json
+from model_utils import SimpleMLP_2, SimpleMLP
 
 # --- Configuration ---
-EMBEDDINGS_FILE = "/local/scratch1/siam/dataset/plant_clef/train/image_embeddings_bioclip2.pkl"
-MODEL_SAVE_PATH = "/local/scratch1/siam/saved_models/plant_clef/bioclip2_mlp_classifier.pth"
 INPUT_SIZE = 768  # Dimensionality of BiCLIP-2 embeddings
-HIDDEN_SIZE = 512
-BATCH_SIZE = 64
+HIDDEN_SIZE = 2048
+BATCH_SIZE = 128
 LEARNING_RATE = 0.001
-NUM_EPOCHS = 30
+NUM_EPOCHS = 50
+
+EMBEDDINGS_FILE = "/local/scratch1/siam/dataset/plant_clef/train/image_embeddings_bioclip2.pkl"
+MODEL_SAVE_PATH = f"/local/scratch1/siam/saved_models/plant_clef/bioclip2_mlp_classifier_big_{HIDDEN_SIZE}.pth"
+
+
+LOG_DIR = "./training_logs/"
+RUN_NAME = f'run_dec_14_big_{HIDDEN_SIZE}'
+os.makedirs(LOG_DIR, exist_ok=True)
+LOG_CSV_PATH = os.path.join(LOG_DIR, f"{RUN_NAME}.csv")
+LOG_JSON_PATH = os.path.join(LOG_DIR, f"{RUN_NAME}.json")
 
 # Determine device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -59,7 +68,7 @@ print(f"Total number of species classes after filter: {NUM_CLASSES}")
 
 # 1e. Split data into training and validation sets (THIS WILL NOW WORK)
 X_train, X_val, y_train, y_val = train_test_split(
-    X_raw, y_encoded, test_size=0.1, random_state=42, stratify=y_encoded
+    X_raw, y_encoded, test_size=0.2, random_state=42, stratify=y_encoded
 )
 
 # --- 2. PyTorch Dataset and DataLoader ---
@@ -86,7 +95,7 @@ val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False)
 
 # --- 3. Define the MLP Model ---
 
-model = SimpleMLP(INPUT_SIZE, HIDDEN_SIZE, NUM_CLASSES).to(device)
+model = SimpleMLP_2(INPUT_SIZE, HIDDEN_SIZE, NUM_CLASSES).to(device)
 
 # --- 4. Training Setup ---
 criterion = nn.CrossEntropyLoss()
@@ -96,6 +105,14 @@ optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 print("\nStarting model training...")
 
 best_val_accuracy = 0.0
+
+history = {
+    "epoch": [],
+    "train_loss": [],
+    "train_accuracy": [],
+    "val_accuracy": [],
+    "lr": [],
+}
 
 for epoch in tqdm(range(NUM_EPOCHS)):
     # Training phase
@@ -112,13 +129,26 @@ for epoch in tqdm(range(NUM_EPOCHS)):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-
         running_loss += loss.item() * embeddings.size(0)
-
     epoch_loss = running_loss / len(train_dataset)
 
     # Validation phase
     model.eval() # Set model to evaluation mode
+
+    # Training Loss
+    correct = 0
+    total = 0
+    with torch.no_grad():
+        for embeddings, labels in train_loader:
+            embeddings, labels = embeddings.to(device), labels.to(device)
+            outputs = model(embeddings)
+            _, predicted = torch.max(outputs.data, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+
+    train_accuracy = 100 * correct / total
+
+    # Val Loss
     correct = 0
     total = 0
     with torch.no_grad():
@@ -130,7 +160,18 @@ for epoch in tqdm(range(NUM_EPOCHS)):
             correct += (predicted == labels).sum().item()
 
     val_accuracy = 100 * correct / total
-    print(f'Epoch [{epoch+1}/{NUM_EPOCHS}], Loss: {epoch_loss:.4f}, Val Acc: {val_accuracy:.2f}%')
+    print(f'Epoch [{epoch+1}/{NUM_EPOCHS}], Loss: {epoch_loss:.4f}, Train Acc: {train_accuracy:.2f}%, Val Acc: {val_accuracy:.2f}%')
+
+    current_lr = optimizer.param_groups[0]["lr"]
+    # --- Save logs (CSV append + in-memory history) ---
+    history["epoch"].append(epoch + 1)
+    history["train_loss"].append(float(epoch_loss))
+    history["train_accuracy"].append(float(train_accuracy))
+    history["val_accuracy"].append(float(val_accuracy))
+    history["lr"].append(float(current_lr))
+
+    with open(LOG_CSV_PATH, "a") as f:
+        f.write(f"{epoch + 1},{epoch_loss:.6f},{val_accuracy:.4f},{current_lr:.8f}\n")
 
     # Save the best model
     if val_accuracy > best_val_accuracy:
@@ -146,3 +187,24 @@ for epoch in tqdm(range(NUM_EPOCHS)):
 
 print("\nTraining complete.")
 print(f"Best model saved to {MODEL_SAVE_PATH}")
+
+# --- Save run summary (JSON) ---
+run_summary = {
+    "run_name": RUN_NAME,
+    "best_val_accuracy": best_val_accuracy,
+    "config": {
+        "EMBEDDINGS_FILE": EMBEDDINGS_FILE,
+        "MODEL_SAVE_PATH": MODEL_SAVE_PATH,
+        "INPUT_SIZE": INPUT_SIZE,
+        "HIDDEN_SIZE": HIDDEN_SIZE,
+        "BATCH_SIZE": BATCH_SIZE,
+        "LEARNING_RATE": LEARNING_RATE,
+        "NUM_EPOCHS": NUM_EPOCHS
+    },
+    "history": history
+}
+
+with open(LOG_JSON_PATH, "w") as f:
+    json.dump(run_summary, f, indent=2)
+
+print(f"Saved JSON summary to: {LOG_JSON_PATH}")
