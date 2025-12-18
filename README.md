@@ -12,14 +12,26 @@
 ![](https://img.shields.io/badge/torchvision-0.24.1-blue.svg)
 ![](https://img.shields.io/badge/transformers-4.57.3-blue.svg)
 ![](https://img.shields.io/badge/scikit--learn-1.7.2-blue.svg)
+
+Installing essential packages
 ```shell
 conda create -n env_name python=3.10
 conda activate env_name
 pip install -r requirements.txt
 ```
 
-## Datasets
+Installing GroundingDINO
+```shell
+git clone https://github.com/IDEA-Research/GroundingDINO.git
+cd GroundingDINO/
+pip install -e .
+```
 
+## Datasets
+We used the PlantCLEF dataset in this project. They can be downloaded from the official [competition page](https://www.imageclef.org/PlantCLEF2025).
+
+- Training data (160 GB) [(Download Link)](https://lab.plantnet.org/LifeCLEF/PlantCLEF2024/single_plant_training_data/PlantCLEF2024singleplanttrainingdata_800_max_side_size.tar)
+- Test data [(Download Link)](https://lab.plantnet.org/LifeCLEF/PlantCLEF2025/vegetation_plot_test_data/PlantCLEF2025test.tar)
 
 ## Feature Extraction
 In this project, we used BioCLIP-2 feature extractor. 
