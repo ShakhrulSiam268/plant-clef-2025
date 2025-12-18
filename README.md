@@ -2,15 +2,24 @@
 ![Project Logo](sample_data/new_banner_plantclef2025.png)
 
 ![https://www.kaggle.com/competitions/plantclef-2025/overview](https://kaggle.com/static/images/open-in-kaggle.svg)
+
+
+
+## Installation Instruction
 ![Python versions](https://img.shields.io/badge/python-3.10%20-3776AB?logo=python&logoColor=white)
 
-
-## Installation
+![](https://img.shields.io/badge/torch-2.9.1-blue.svg)
+![](https://img.shields.io/badge/torchvision-0.24.1-blue.svg)
+![](https://img.shields.io/badge/transformers-4.57.3-blue.svg)
+![](https://img.shields.io/badge/scikit--learn-1.7.2-blue.svg)
 ```shell
 conda create -n env_name python=3.10
 conda activate env_name
 pip install -r requirements.txt
 ```
+
+## Datasets
+
 
 ## Feature Extraction
 In this project, we used BioCLIP-2 feature extractor. 
@@ -20,7 +29,7 @@ Run the following command to Extract features from all training data.
 python data/feature_extract_bioclip2.py
 ```
 
-## Training Classifier
+## Advanced Algorithm
 ![Project Logo](sample_data/model.png)
 Run the following command to train the MLP classifier.
 ```shell
@@ -38,4 +47,11 @@ python src/test_grid_sam.py
 This will create .csv file containing all predicted class. Submit it to [Kaggle](https://www.kaggle.com/competitions/plantclef-2025/overview) Submission to get official score for evaluation.
 
 ## Test Examples
+Detecting Bounding Box
 ![Sample Test Image](sample_data/test_image_1.png)
+
+Generating Prediction
+![Sample Test Image](sample_data/example_test.png)
+
+## Results
+![Results](sample_data/results.png)
